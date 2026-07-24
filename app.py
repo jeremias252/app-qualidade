@@ -1,17 +1,24 @@
 import streamlit as st
 import pandas as pd
 import uuid
+import time
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Qualidade - Feedbacks", page_icon="🎯", layout="centered")
 
-# --- DESIGN PREMIUM E MODO ESCURO ---
+# --- DESIGN PREMIUM E TENTATIVA DE MODO ESCURO FORÇADO ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    
+    /* Forçando algumas cores escuras na base */
+    .stApp {
+        background-color: #0E1117;
+        color: #FFFFFF;
+    }
     
     .stButton>button {
         border-radius: 8px;
@@ -64,7 +71,7 @@ equipes = {
     "Caixas": ["Marcello", "Fabiano", "Sérgio", "Renan", "Gustavo"]
 }
 
-# --- LOGO SVG E BOTÃO DE ATUALIZAR (IDÊNTICO AOS OUTROS) ---
+# --- LOGO SVG ---
 logo_svg = """
 <div style="display: flex; justify-content: center; margin-bottom: 30px;">
     <svg width="100%" viewBox="0 0 400 350" xmlns="http://www.w3.org/2000/svg">
@@ -84,7 +91,7 @@ if st.sidebar.button("🔄 Atualizar Banco de Dados", use_container_width=True):
     st.rerun()
 st.sidebar.divider()
 
-# --- CONTROLE DE ACESSO (SÓ COORDENADOR) ---
+# --- CONTROLE DE ACESSO ---
 st.sidebar.title("🔐 Acesso Seguro")
 senha = st.sidebar.text_input("Senha do Coordenador:", type="password")
 
@@ -103,7 +110,7 @@ abas = st.tabs(["📝 Lançar Erros", "📊 Dashboard", "🕒 Histórico"])
 
 with abas[0]:
     st.header("📝 Lançamento Expresso")
-    st.write("Transcreva os erros do papel para o sistema. O preenchimento agora é instantâneo!")
+    st.write("Transcreva os erros do papel para o sistema.")
     
     col_data, col_setor = st.columns(2)
     with col_data:
@@ -118,7 +125,6 @@ with abas[0]:
             st.divider()
             st.markdown(f"### ❌ Erros de **{separador}**")
             
-            # FORMULÁRIO PARA ACELERAR A DIGITAÇÃO (NÃO TRAVA O APP)
             with st.form("form_erros", clear_on_submit=True):
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -135,21 +141,26 @@ with abas[0]:
                     if total == 0:
                         st.error("⚠️ Você precisa registrar pelo menos 1 erro para salvar.")
                     else:
-                        novo = pd.DataFrame([{
-                            "ID": str(uuid.uuid4()), 
-                            "Data": data_lancamento.strftime("%Y-%m-%d"), 
-                            "Setor": setor, 
-                            "Separador": separador, 
-                            "Erro_Cor": err_cor, 
-                            "Erro_Configuracao": err_conf, 
-                            "Erro_Modelo": err_mod, 
-                            "Total_Erros": total
-                        }])
-                        df_erros = pd.concat([novo, df_erros], ignore_index=True)
-                        salvar_dados(df_erros)
-                        st.cache_data.clear()
-                        st.success(f"✅ {total} erros de {separador} salvos com sucesso!")
-                        st.rerun()
+                        # A BARRA DE CARREGAMENTO ENTRA AQUI
+                        with st.spinner("⏳ Salvando no Google Drive..."):
+                            novo = pd.DataFrame([{
+                                "ID": str(uuid.uuid4()), 
+                                "Data": data_lancamento.strftime("%Y-%m-%d"), 
+                                "Setor": setor, 
+                                "Separador": separador, 
+                                "Erro_Cor": err_cor, 
+                                "Erro_Configuracao": err_conf, 
+                                "Erro_Modelo": err_mod, 
+                                "Total_Erros": total
+                            }])
+                            df_erros = pd.concat([novo, df_erros], ignore_index=True)
+                            salvar_dados(df_erros)
+                            st.cache_data.clear()
+                        
+                        # MENSAGEM DE SUCESSO COM PAUSA PARA LEITURA
+                        st.success(f"✅ Sucesso! {total} erros de {separador} foram salvos.")
+                        time.sleep(1.5) # O app "congela" por 1 segundo e meio para você ler
+                        st.rerun()      # E só depois limpa a tela
 
 with abas[1]:
     st.header("📊 Raio-X da Equipe")
