@@ -8,17 +8,11 @@ from streamlit_gsheets import GSheetsConnection
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Qualidade - Feedbacks", page_icon="🎯", layout="centered")
 
-# --- DESIGN PREMIUM E TENTATIVA DE MODO ESCURO FORÇADO ---
+# --- DESIGN PREMIUM LIMPO ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* Forçando algumas cores escuras na base */
-    .stApp {
-        background-color: #0E1117;
-        color: #FFFFFF;
-    }
     
     .stButton>button {
         border-radius: 8px;
@@ -141,7 +135,6 @@ with abas[0]:
                     if total == 0:
                         st.error("⚠️ Você precisa registrar pelo menos 1 erro para salvar.")
                     else:
-                        # A BARRA DE CARREGAMENTO ENTRA AQUI
                         with st.spinner("⏳ Salvando no Google Drive..."):
                             novo = pd.DataFrame([{
                                 "ID": str(uuid.uuid4()), 
@@ -157,10 +150,9 @@ with abas[0]:
                             salvar_dados(df_erros)
                             st.cache_data.clear()
                         
-                        # MENSAGEM DE SUCESSO COM PAUSA PARA LEITURA
                         st.success(f"✅ Sucesso! {total} erros de {separador} foram salvos.")
-                        time.sleep(1.5) # O app "congela" por 1 segundo e meio para você ler
-                        st.rerun()      # E só depois limpa a tela
+                        time.sleep(1.5) 
+                        st.rerun()      
 
 with abas[1]:
     st.header("📊 Raio-X da Equipe")
