@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import uuid
-import time
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 
@@ -32,14 +31,6 @@ st.markdown("""
         margin-bottom: 1rem;
         border-bottom: 2px solid #333333;
     }
-    .destaque-erro {
-        background-color: #2b1111;
-        padding: 15px;
-        border-radius: 8px;
-        border: 1px solid #4a1f1f;
-        text-align: center;
-        margin-bottom: 15px;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -52,7 +43,6 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 def carregar_dados():
     try:
         df = conn.read(spreadsheet=URL_PLANILHA, worksheet="Registros", ttl=600).copy()
-        # Se a planilha for recém-criada e estiver vazia, ele cria as colunas
         if df.empty or "ID" not in df.columns:
             df = pd.DataFrame(columns=["ID", "Data", "Setor", "Separador", "Erro_Cor", "Erro_Configuracao", "Erro_Modelo", "Total_Erros"])
             conn.update(spreadsheet=URL_PLANILHA, worksheet="Registros", data=df)
@@ -74,30 +64,46 @@ equipes = {
     "Caixas": ["Marcello", "Fabiano", "Sérgio", "Renan", "Gustavo"]
 }
 
-# --- TELA PRINCIPAL ---
-st.markdown("<h1 class='main-title'>🎯 Qualidade - Feedbacks</h1>", unsafe_allow_html=True)
-
-# --- CONTROLE DE ACESSO (SÓ COORDENADOR) ---
-st.sidebar.title("🔐 Acesso Restrito")
-senha = st.sidebar.text_input("Senha do Coordenador:", type="password")
-
-if senha != "coord123":
-    st.warning("👋 Este aplicativo é de uso exclusivo da Coordenação para feedbacks.")
-    st.info("👈 Digite a senha no menu lateral para liberar o acesso.")
-    st.stop()
+# --- LOGO SVG E BOTÃO DE ATUALIZAR (IDÊNTICO AOS OUTROS) ---
+logo_svg = """
+<div style="display: flex; justify-content: center; margin-bottom: 30px;">
+    <svg width="100%" viewBox="0 0 400 350" xmlns="http://www.w3.org/2000/svg">
+        <rect width="400" height="350" fill="transparent" rx="12"/>
+        <path d="M 320 180 L 320 50 L 50 50 L 50 300 L 320 300 L 320 250" fill="none" stroke="#ffffff" stroke-width="12" />
+        <text x="75" y="150" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="70" letter-spacing="2">SETOR</text>
+        <text x="50" y="235" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="52" letter-spacing="1">QUALIDADE</text>
+        <text x="325" y="225" fill="#ffffff" font-family="Arial, sans-serif" font-weight="bold" font-size="28">.COM</text>
+        <line x1="290" y1="260" x2="380" y2="260" stroke="#ef4444" stroke-width="12" />
+    </svg>
+</div>
+"""
+st.sidebar.markdown(logo_svg, unsafe_allow_html=True)
 
 if st.sidebar.button("🔄 Atualizar Banco de Dados", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
+st.sidebar.divider()
+
+# --- CONTROLE DE ACESSO (SÓ COORDENADOR) ---
+st.sidebar.title("🔐 Acesso Seguro")
+senha = st.sidebar.text_input("Senha do Coordenador:", type="password")
+
+if senha != "coord123":
+    st.warning("👋 Este aplicativo é de uso exclusivo da Coordenação.")
+    st.info("👈 Digite a senha no menu lateral para liberar o acesso ao painel de Qualidade.")
+    st.stop()
+
+# --- TELA PRINCIPAL ---
+st.markdown("<h1 class='main-title'>🎯 Qualidade - Feedbacks</h1>", unsafe_allow_html=True)
 
 # CARREGA OS DADOS
 df_erros = carregar_dados()
 
-abas = st.tabs(["📝 Lançar Erros", "📊 Dashboard de Qualidade", "🕒 Histórico"])
+abas = st.tabs(["📝 Lançar Erros", "📊 Dashboard", "🕒 Histórico"])
 
 with abas[0]:
-    st.header("📝 Lançamento Diário")
-    st.write("Transcreva as marcações do papel para o sistema de forma rápida.")
+    st.header("📝 Lançamento Expresso")
+    st.write("Transcreva os erros do papel para o sistema. O preenchimento agora é instantâneo!")
     
     col_data, col_setor = st.columns(2)
     with col_data:
@@ -109,40 +115,41 @@ with abas[0]:
         separador = st.selectbox("3. Separador", [""] + equipes[setor])
         
         if separador:
+            st.divider()
             st.markdown(f"### ❌ Erros de **{separador}**")
             
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                err_cor = st.number_input("🎨 Cor", min_value=0, value=0)
-            with col2:
-                err_conf = st.number_input("⚙️ Config.", min_value=0, value=0)
-            with col3:
-                err_mod = st.number_input("📦 Modelo", min_value=0, value=0)
-            
-            total = err_cor + err_conf + err_mod
-            
-            st.markdown(f"<div class='destaque-erro'><b>Total de erros apontados hoje:</b> <span style='color:#ef4444; font-size:20px; font-weight:bold;'>{total}</span></div>", unsafe_allow_html=True)
-            
-            if st.button("💾 Salvar Apontamento", type="primary", use_container_width=True):
-                if total == 0:
-                    st.warning("⚠️ Você precisa registrar pelo menos 1 erro, ou não há nada para salvar.")
-                else:
-                    novo = pd.DataFrame([{
-                        "ID": str(uuid.uuid4()), 
-                        "Data": data_lancamento.strftime("%Y-%m-%d"), 
-                        "Setor": setor, 
-                        "Separador": separador, 
-                        "Erro_Cor": err_cor, 
-                        "Erro_Configuracao": err_conf, 
-                        "Erro_Modelo": err_mod, 
-                        "Total_Erros": total
-                    }])
-                    df_erros = pd.concat([novo, df_erros], ignore_index=True)
-                    salvar_dados(df_erros)
-                    st.cache_data.clear()
-                    st.success(f"✅ Erros de {separador} salvos com sucesso!")
-                    time.sleep(1.5) # Aguarda 1.5 segundos para você ler a mensagem
-                    st.rerun()      # Limpa a tela para o próximo lançamento
+            # FORMULÁRIO PARA ACELERAR A DIGITAÇÃO (NÃO TRAVA O APP)
+            with st.form("form_erros", clear_on_submit=True):
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    err_cor = st.number_input("🎨 Cor", min_value=0, value=0)
+                with col2:
+                    err_conf = st.number_input("⚙️ Config.", min_value=0, value=0)
+                with col3:
+                    err_mod = st.number_input("📦 Modelo", min_value=0, value=0)
+                
+                submit = st.form_submit_button("💾 Salvar Apontamento", type="primary", use_container_width=True)
+                
+                if submit:
+                    total = err_cor + err_conf + err_mod
+                    if total == 0:
+                        st.error("⚠️ Você precisa registrar pelo menos 1 erro para salvar.")
+                    else:
+                        novo = pd.DataFrame([{
+                            "ID": str(uuid.uuid4()), 
+                            "Data": data_lancamento.strftime("%Y-%m-%d"), 
+                            "Setor": setor, 
+                            "Separador": separador, 
+                            "Erro_Cor": err_cor, 
+                            "Erro_Configuracao": err_conf, 
+                            "Erro_Modelo": err_mod, 
+                            "Total_Erros": total
+                        }])
+                        df_erros = pd.concat([novo, df_erros], ignore_index=True)
+                        salvar_dados(df_erros)
+                        st.cache_data.clear()
+                        st.success(f"✅ {total} erros de {separador} salvos com sucesso!")
+                        st.rerun()
 
 with abas[1]:
     st.header("📊 Raio-X da Equipe")
@@ -180,9 +187,9 @@ with abas[1]:
             err_por_sep = df_filtro.groupby("Separador")["Total_Erros"].sum().sort_values(ascending=False)
             st.bar_chart(err_por_sep, color="#ef4444")
             
-            st.subheader("📈 Evolução Diária de Erros (Setor)")
+            st.subheader("📈 Evolução Diária de Erros")
             err_por_dia = df_filtro.groupby("Data")["Total_Erros"].sum()
-            st.line_chart(err_por_dia, color="#F38020")
+            st.line_chart(err_por_dia, color="#ef4444")
 
 with abas[2]:
     st.header("🕒 Histórico de Apontamentos")
