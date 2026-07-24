@@ -100,7 +100,8 @@ st.markdown("<h1 class='main-title'>🎯 Qualidade - Feedbacks</h1>", unsafe_all
 # CARREGA OS DADOS
 df_erros = carregar_dados()
 
-abas = st.tabs(["📝 Lançar Erros", "📊 Dashboard", "🕒 Histórico"])
+# --- 4 ABAS AGORA ---
+abas = st.tabs(["📝 Lançar Erros", "📊 Dashboard", "🕒 Histórico", "👑 Fechamento"])
 
 with abas[0]:
     st.header("📝 Lançamento Expresso")
@@ -197,3 +198,27 @@ with abas[1]:
 with abas[2]:
     st.header("🕒 Histórico de Apontamentos")
     st.dataframe(df_erros.drop(columns=["ID"], errors="ignore"), use_container_width=True, hide_index=True)
+
+# --- NOVA ABA DE EXPORTAÇÃO ---
+with abas[3]:
+    st.header("👑 Fechamento e Exportação")
+    st.write("Baixe a planilha completa com todo o histórico de erros para abrir no Excel.")
+    
+    if not df_erros.empty:
+        # Prepara o arquivo no formato perfeito para o Excel do Brasil (separado por ; e com acentos)
+        df_export = df_erros.drop(columns=["ID"], errors="ignore")
+        csv_convertido = df_export.to_csv(index=False, sep=";").encode("utf-8-sig")
+        
+        hoje_str = datetime.today().strftime('%d-%m-%Y')
+        
+        st.download_button(
+            label="📥 Baixar Relatório Completo (Excel / CSV)",
+            data=csv_convertido,
+            file_name=f"Relatorio_Qualidade_{hoje_str}.csv",
+            mime="text/csv",
+            type="primary",
+            use_container_width=True
+        )
+        st.caption("O arquivo baixado pode ser aberto diretamente no Excel. Ele já está formatado com colunas separadas e acentuação correta.")
+    else:
+        st.info("Ainda não há dados para exportar.")
